@@ -13,13 +13,10 @@ exports.googleLogin = async (req, res) => {
       typeof idToken === 'string' &&
       idToken.startsWith('mock_');
 
-    // Verify Google Token (In MVP without true client ID, we can optionally bypass verification for testing)
-    // For now, we will assume idToken contains a payload if starting without real google client ID.
     let payload;
     if (isMockLogin) {
-      // Mock logic for easy local testing
       payload = {
-        sub: idToken.split('_')[1], // mock_12345 -> 12345
+        sub: idToken.split('_')[1],
         email: idToken.split('_')[1] + '@gmail.com',
         name: 'Mock User ' + idToken.split('_')[1]
       };
@@ -33,28 +30,39 @@ exports.googleLogin = async (req, res) => {
 
     const { sub: googleId, email, name: username } = payload;
 
-    let user = await User.findOne({ googleId });
+    const userSnapshot = await User.where('googleId', '==', googleId).limit(1).get();
+    let user;
     let isNewUser = false;
 
-    if (!user) {
-      // Check if email already exists with different googleId
-      user = await User.findOne({ email });
-      if (user) {
+    if (userSnapshot.empty) {
+      const emailSnapshot = await User.where('email', '==', email).limit(1).get();
+      if (!emailSnapshot.empty) {
         return res.status(400).json({ message: 'Email already used by another account.' });
       }
 
-      user = await User.create({
+      const newUser = {
         googleId,
         email,
         username,
-        // Wait for them to supply universityEmail in another step
-      });
+        universityEmail: null,
+        isVerified: false,
+        universityName: 'Unknown University',
+        bio: '',
+        languagePreference: 'en',
+        isAnonymous: false,
+        friends: [],
+        createdAt: new Date().toISOString()
+      };
+      
+      const docRef = await User.add(newUser);
+      user = { id: docRef.id, ...newUser };
       isNewUser = true;
+    } else {
+      user = { id: userSnapshot.docs[0].id, ...userSnapshot.docs[0].data() };
     }
 
-    // Generate JWT
     const token = jwt.sign(
-      { id: user._id, isNewUser },
+      { id: user.id, isNewUser },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -62,7 +70,7 @@ exports.googleLogin = async (req, res) => {
     res.json({
       token,
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         universityEmail: user.universityEmail,
@@ -81,25 +89,28 @@ exports.googleLogin = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const { universityEmail, universityName, bio, languagePreference, isAnonymous } = req.body;
-    const user = await User.findById(req.user.id);
+    const docRef = User.doc(req.user.id);
+    const doc = await docRef.get();
     
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!doc.exists) return res.status(404).json({ message: 'User not found' });
 
-    if (universityEmail) user.universityEmail = universityEmail;
-    if (universityName) user.universityName = universityName;
-    if (bio !== undefined) user.bio = bio;
-    if (languagePreference) user.languagePreference = languagePreference;
-    if (isAnonymous !== undefined) user.isAnonymous = isAnonymous;
+    const updates = {};
+    if (universityEmail) updates.universityEmail = universityEmail;
+    if (universityName) updates.universityName = universityName;
+    if (bio !== undefined) updates.bio = bio;
+    if (languagePreference) updates.languagePreference = languagePreference;
+    if (isAnonymous !== undefined) updates.isAnonymous = isAnonymous;
 
-    // AI Email Verification Mock
     if (universityEmail && universityEmail.endsWith('.edu')) {
-      user.isVerified = true; // Automatically verify .edu for MVP
+      updates.isVerified = true;
     } else if (universityEmail) {
-       user.isVerified = false; // Need mock AI verification
+       updates.isVerified = false;
     }
 
-    await user.save();
-    res.json(user);
+    await docRef.update(updates);
+    const updatedDoc = await docRef.get();
+    
+    res.json({ id: updatedDoc.id, ...updatedDoc.data() });
   } catch (error) {
     res.status(500).json({ message: 'Error updating profile' });
   }
@@ -107,7 +118,26 @@ exports.updateProfile = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate('friends', 'username universityName');
+    const doc = await User.doc(req.user.id).get();
+    if (!doc.exists) return res.status(404).json({ message: 'User not found' });
+    
+    const user = { id: doc.id, ...doc.data() };
+    
+    if (user.friends && user.friends.length > 0) {
+      const friendSnapshots = await Promise.all(
+        user.friends.map(friendId => User.doc(friendId).get())
+      );
+      user.friends = friendSnapshots
+        .filter(f => f.exists)
+        .map(f => ({
+          id: f.id,
+          username: f.data().username,
+          universityName: f.data().universityName
+        }));
+    } else {
+      user.friends = [];
+    }
+    
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });

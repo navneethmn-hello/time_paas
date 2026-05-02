@@ -3,14 +3,18 @@ const Community = require('../models/Community');
 exports.createCommunity = async (req, res) => {
   try {
     const { name, description, tags } = req.body;
-    const community = await Community.create({
+    
+    const newCommunity = {
       name,
       description,
-      tags,
+      tags: tags || [],
       admins: [req.user.id],
       members: [req.user.id],
-    });
-    res.status(201).json(community);
+      createdAt: new Date().toISOString()
+    };
+
+    const docRef = await Community.add(newCommunity);
+    res.status(201).json({ id: docRef.id, ...newCommunity });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -18,7 +22,8 @@ exports.createCommunity = async (req, res) => {
 
 exports.getCommunities = async (req, res) => {
   try {
-    const communities = await Community.find();
+    const snapshot = await Community.get();
+    const communities = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.json(communities);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -27,15 +32,21 @@ exports.getCommunities = async (req, res) => {
 
 exports.joinCommunity = async (req, res) => {
    try {
-     const community = await Community.findById(req.params.id);
-     if(!community) return res.status(404).json({ message: 'Community not found' });
+     const commRef = Community.doc(req.params.id);
+     const doc = await commRef.get();
+     
+     if(!doc.exists) return res.status(404).json({ message: 'Community not found' });
+     
+     const community = doc.data();
+     let members = community.members || [];
 
-     if(!community.members.includes(req.user.id)) {
-         community.members.push(req.user.id);
-         await community.save();
+     if(!members.includes(req.user.id)) {
+         members.push(req.user.id);
+         await commRef.update({ members });
      }
-     res.json(community);
+     
+     res.json({ id: doc.id, ...community, members });
    } catch(error) {
        res.status(500).json({ error: error.message });
    }
-}
+};
