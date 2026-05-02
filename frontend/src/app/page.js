@@ -8,11 +8,17 @@ import { api } from '@/lib/api';
 export default function Home() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { mockTranslate, language } = useLanguage();
+  const { t, prefetch, language } = useLanguage();
 
   useEffect(() => {
     fetchPosts();
   }, []);
+
+  useEffect(() => {
+    if (posts.length > 0) {
+      prefetch(posts.flatMap((p) => [p.title, p.content]));
+    }
+  }, [language, posts, prefetch]);
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -40,8 +46,8 @@ export default function Home() {
           ) : (
             <div className="text-center py-20 bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl">
               <Rocket size={48} className="mx-auto text-slate-400 mb-4 animate-bounce" />
-              <h2 className="text-xl font-semibold mb-2">{mockTranslate("No posts found", language)}</h2>
-              <p className="text-slate-500 dark:text-slate-400">{mockTranslate("Be the first to post something!", language)}</p>
+              <h2 className="text-xl font-semibold mb-2">{t("No posts found")}</h2>
+              <p className="text-slate-500 dark:text-slate-400">{t("Be the first to post something!")}</p>
             </div>
           )}
         </div>

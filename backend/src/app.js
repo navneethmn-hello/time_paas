@@ -31,6 +31,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/posts', require('./routes/posts'));
 app.use('/api/communities', require('./routes/communities'));
 app.use('/api/comments', require('./routes/comments'));
+app.use('/api/translate', require('./routes/translate'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: new Date() });

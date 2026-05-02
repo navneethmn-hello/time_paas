@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 
 export default function PostCard({ post }) {
-  const { mockTranslate, language } = useLanguage();
+  const { t } = useLanguage();
   const { token } = useAuth();
   
   const [likes, setLikes] = useState(post.upvotes.length - post.downvotes.length);
@@ -61,7 +61,7 @@ export default function PostCard({ post }) {
       {/* Content Area (Simulating an image post but with text) */}
       <div className="bg-slate-50 dark:bg-slate-900/50 min-h-[300px] flex items-center justify-center p-6 border-b border-slate-100 dark:border-white/5">
         <h2 className="text-2xl md:text-3xl font-bold text-center text-slate-800 dark:text-white break-words">
-          {mockTranslate(post.title, language)}
+          {t(post.title)}
         </h2>
       </div>
 
@@ -93,7 +93,7 @@ export default function PostCard({ post }) {
         <div className="text-sm text-black dark:text-white">
           <span className="font-semibold mr-2 cursor-pointer">{post.author.username}</span>
           <span className="text-slate-800 dark:text-slate-200 whitespace-pre-wrap break-words">
-            {mockTranslate(post.content, language)}
+            {t(post.content)}
           </span>
         </div>
         

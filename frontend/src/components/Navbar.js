@@ -9,7 +9,7 @@ import GoogleLoginButton from './GoogleLoginButton';
 
 export default function Navbar() {
   const { user, login, logout } = useAuth();
-  const { language, setLanguage, mockTranslate } = useLanguage();
+  const { language, setLanguage, t, prefetch } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -17,6 +17,10 @@ export default function Navbar() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    prefetch(['Login', 'Logout', 'Profile']);
+  }, [language, prefetch]);
 
   const handleLogin = async (credential) => {
     const idToken = credential || 'mock_' + Math.floor(Math.random() * 1000000);
@@ -68,7 +72,7 @@ export default function Navbar() {
           ) : (
             <GoogleLoginButton
               onCredential={handleLogin}
-              fallbackLabel={mockTranslate("Login", language)}
+              fallbackLabel={t("Login")}
               className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 rounded-lg font-semibold text-sm transition"
             />
           )}
@@ -105,7 +109,7 @@ export default function Navbar() {
                   await handleLogin(credential);
                   setMenuOpen(false);
                 }}
-                fallbackLabel={mockTranslate("Login", language)}
+                fallbackLabel={t("Login")}
                 className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm transition text-center"
               />
              </div>

@@ -1,5 +1,6 @@
 import './globals.css';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import { AuthProvider } from '@/context/AuthContext';
 import { LanguageProvider } from '@/context/LanguageContext';
 import Navbar from '@/components/Navbar';
@@ -16,6 +17,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AuthProvider>
             <LanguageProvider>
